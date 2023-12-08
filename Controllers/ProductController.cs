@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Drivers.Api.Controllers;
 
     [ApiController]
-    [Route("[controller]")]
+    [Route("api/[controller]")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class ProductController : ControllerBase
     {
@@ -25,4 +25,3 @@ namespace Drivers.Api.Controllers;
             return Ok(productList);
         }
     }
-

@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace Drivers.Api.Controllers;
 
+[Route("api/[controller]")]
 public class AuthManagementController : ControllerBase
 {
     private readonly ILogger<AuthManagementController> _logger;
