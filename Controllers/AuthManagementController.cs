@@ -28,11 +28,11 @@ public class AuthManagementController : ControllerBase
 
     [HttpPost]
     [Route("Register")]
-    public async Task<IActionResult> Regitter([FromBody] UserRegistrationRequestDto req)
+    public async Task<IActionResult> Regitter([FromBody] UserRegistrationRequestDto requestDto)
     {
         if (ModelState.IsValid)
         {
-            var emailExist = await _userManager.FindByEmailAsync(req.Email);
+            var emailExist = await _userManager.FindByEmailAsync(requestDto.Email);
 
             if (emailExist != null)
             {
@@ -41,10 +41,11 @@ public class AuthManagementController : ControllerBase
 
             var newUser = new IdentityUser()
             {
-                Email = req.Email
+                Email = requestDto.Email,
+                UserName = requestDto.Email
             };
 
-            var isCreated = await _userManager.CreateAsync(newUser, req.Password);
+            var isCreated = await _userManager.CreateAsync(newUser, requestDto.Password);
 
             if (isCreated.Succeeded)
             {
@@ -56,7 +57,7 @@ public class AuthManagementController : ControllerBase
                 });
             }
 
-            return BadRequest("error creating the user, please try again alter");
+            return BadRequest(isCreated.Errors.Select(x => x.Description).ToList());
         }
 
         return BadRequest("Invalid request payload");
@@ -83,5 +84,36 @@ public class AuthManagementController : ControllerBase
         var token = jwtTokenHandler.CreateToken(tokenDescriptor);
         var jwtToken = jwtTokenHandler.WriteToken(token);
         return jwtToken;
+    }
+
+    [HttpPost]
+    [Route("Login")]
+    public async Task<IActionResult> Login([FromBody] UserLoginRequestDto requestDto)
+    {
+        if (ModelState.IsValid)
+        {
+            var existingUser = await _userManager.FindByEmailAsync((requestDto.Email));
+
+            if (existingUser == null)
+            {
+                return BadRequest("Invalid authentication");
+            }
+
+            var isPasswordValid = await _userManager.CheckPasswordAsync(existingUser, requestDto.Password);
+
+            if (isPasswordValid)
+            {
+                var token = GenerateJwtToken(existingUser);
+
+                return Ok(new LoginRequestResponse()
+                {
+                    Token = token,
+                    Result = true
+                });
+            }
+
+            return BadRequest("Invalid authentication");
+        }
+        return BadRequest("Invalid request payload");
     }
 }
