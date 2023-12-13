@@ -41,12 +41,6 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-builder.Services.Configure<RequestLocalizationOptions>(options =>
-{
-    options.DefaultRequestCulture = new RequestCulture(CultureInfo.InvariantCulture);
-    // Other localization options if needed...
-});
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
