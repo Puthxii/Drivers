@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Drivers.Api.Configurations;
 using Drivers.Api.Models.DTOs;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -11,6 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace Drivers.Api.Controllers;
 
 [Route("api/[controller]")]
+[EnableCors("OpenCORSPolicy")]
 public class AuthManagementController : ControllerBase
 {
     private readonly ILogger<AuthManagementController> _logger;
