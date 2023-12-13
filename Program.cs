@@ -42,7 +42,17 @@ builder.Services.AddAuthentication(options =>
 });
 
 var app = builder.Build();
+const string corsOpenPolicy = "OpenCORSPolicy";;
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(
+        name: corsOpenPolicy,
+        builder =>
+        {
+            builder.WithOrigins("*").AllowAnyHeader().AllowAnyMethod();
+        });
+});
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -53,6 +63,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseCors(corsOpenPolicy);
 app.MapControllers();
 app.Run();
