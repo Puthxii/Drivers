@@ -38,17 +38,6 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = false
     };
 });
-const string corsOpenPolicy = "OpenCORSPolicy";;
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(
-        name: corsOpenPolicy,
-        builder =>
-        {
-            builder.WithOrigins("*").AllowAnyHeader().AllowAnyMethod();
-        });
-});
 
 var app = builder.Build();
 
@@ -62,6 +51,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors(corsOpenPolicy);
+
 app.MapControllers();
 app.Run();
