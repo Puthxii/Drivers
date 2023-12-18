@@ -1,10 +1,11 @@
-﻿using Drivers.Api.Models.Product;
+﻿using Drivers.Api.Models.DTOs;
+using Drivers.Api.Models.Product;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Drivers.Api.Data
 {
-    public class ApiDbContext : IdentityDbContext
+    public class ApiDbContext : IdentityDbContext<ApplicationUser>
     {
         public DbSet<Product> Products { get; set; }
         public ApiDbContext(DbContextOptions<ApiDbContext> options) : base(options)
@@ -16,12 +17,9 @@ namespace Drivers.Api.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Specify the column type for the Price property
             modelBuilder.Entity<Product>()
                 .Property(p => p.Price)
-                .HasColumnType("decimal(18, 2)"); // Adjust precision and scale as needed
-
-            // Other configurations for your entities...
+                .HasColumnType("decimal(18, 2)");
         }
     }
 }
