@@ -1,5 +1,6 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Drivers.Api.Configurations;
 using Drivers.Api.Models.DTOs;
@@ -14,17 +15,20 @@ namespace Drivers.Api.Controllers;
 public class AuthManagementController : ControllerBase
 {
     private readonly ILogger<AuthManagementController> _logger;
-    private readonly UserManager<IdentityUser> _userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly JwtConfig _jwtConfig;
+    private readonly IConfiguration _configuration;
 
     public AuthManagementController(
         ILogger<AuthManagementController> logger,
-        UserManager<IdentityUser> userManager,
-        IOptionsMonitor<JwtConfig> optionsMonitor)
+        UserManager<ApplicationUser> userManager,
+        IOptionsMonitor<JwtConfig> optionsMonitor,
+        IConfiguration configuration)
     {
         _logger = logger;
         _userManager = userManager;
         _jwtConfig = optionsMonitor.CurrentValue;
+        _configuration = configuration;
     }
 
     [HttpPost]
@@ -40,7 +44,7 @@ public class AuthManagementController : ControllerBase
                 return BadRequest("email already exist");
             }
 
-            var newUser = new IdentityUser()
+            var newUser = new ApplicationUser()
             {
                 Email = requestDto.Email,
                 UserName = requestDto.Email
@@ -64,29 +68,6 @@ public class AuthManagementController : ControllerBase
         return BadRequest("Invalid request payload");
     }
 
-    private string GenerateJwtToken(IdentityUser user)
-    {
-        var jwtTokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_jwtConfig.Secret);
-        var tokenDescriptor = new SecurityTokenDescriptor()
-        {
-            Subject = new ClaimsIdentity(new []
-            {
-                new Claim("Id", user.Id),
-                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            }),
-            Expires = DateTime.UtcNow.AddHours(4),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key),
-                SecurityAlgorithms.HmacSha512)
-        };
-
-        var token = jwtTokenHandler.CreateToken(tokenDescriptor);
-        var jwtToken = jwtTokenHandler.WriteToken(token);
-        return jwtToken;
-    }
-
     [HttpPost]
     [Route("Login")]
     public async Task<IActionResult> Login([FromBody] UserLoginRequestDto requestDto)
@@ -105,6 +86,14 @@ public class AuthManagementController : ControllerBase
             if (isPasswordValid)
             {
                 var token = GenerateJwtToken(existingUser);
+                var refreshToken = GenerateRefreshToken();
+
+                _ = int.TryParse(_configuration["JwtConfig:RefreshTokenValidityInDays"], out int refreshTokenValidityInDays);
+
+                existingUser.RefreshToken = refreshToken;
+                existingUser.RefreshTokenExpiryTime = DateTime.Now.AddDays(refreshTokenValidityInDays);
+
+                await _userManager.UpdateAsync(existingUser);
 
                 return Ok(new LoginRequestResponse()
                 {
@@ -116,5 +105,40 @@ public class AuthManagementController : ControllerBase
             return BadRequest("Invalid authentication");
         }
         return BadRequest("Invalid request payload");
+    }
+
+    private string GenerateJwtToken(ApplicationUser user)
+    {
+        var jwtTokenHandler = new JwtSecurityTokenHandler();
+        var key = Encoding.ASCII.GetBytes(_jwtConfig.Secret);
+        _ = int.TryParse(_configuration["JwtConfig:tokenValidityInMinutes"], out int tokenValidityInMinutes);
+
+        var tokenDescriptor = new SecurityTokenDescriptor()
+        {
+            Subject = new ClaimsIdentity(new []
+            {
+                new Claim("Id", user.Id),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            }),
+            Issuer = _configuration["JwtConfig:ValidIssuer"],
+            Audience = _configuration["JwtConfig:ValidAudience"],
+            NotBefore = DateTime.UtcNow,
+            Expires = DateTime.UtcNow.AddMinutes(tokenValidityInMinutes),
+            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key),
+                SecurityAlgorithms.HmacSha512)
+        };
+        var token = jwtTokenHandler.CreateToken(tokenDescriptor);
+        var jwtToken = jwtTokenHandler.WriteToken(token);
+        return jwtToken;
+    }
+
+    private static string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[64];
+        using var rng = RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
     }
 }

@@ -1,10 +1,9 @@
-using System.Globalization;
 using System.Text;
 using Drivers.Api.Configurations;
 using Drivers.Api.Data;
+using Drivers.Api.Models.DTOs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
@@ -17,9 +16,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options =>
-    options.SignIn.RequireConfirmedAccount = false)
-    .AddEntityFrameworkStores<ApiDbContext>();
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+    .AddEntityFrameworkStores<ApiDbContext>()
+    .AddDefaultTokenProviders();
 
 builder.Services.AddAuthentication(options =>
 {
@@ -28,17 +27,26 @@ builder.Services.AddAuthentication(options =>
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(jwt =>
 {
-    var key = Encoding.ASCII.GetBytes(builder.Configuration.GetSection("JwtConfig:Secret").Value);
-    jwt.SaveToken = true;
-    jwt.TokenValidationParameters = new TokenValidationParameters()
+    var value = builder.Configuration.GetSection("JwtConfig:Secret").Value;
+    var validAudience = builder.Configuration.GetSection("JwtConfig:ValidAudience").Value;
+    var validIssuer = builder.Configuration.GetSection("JwtConfig:ValidIssuer").Value;
+    if (value != null && validAudience != null && validIssuer != null)
     {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = false,
-        ValidateAudience = false,
-        RequireExpirationTime = false,
-        ValidateLifetime = false
-    };
+        var key = Encoding.ASCII.GetBytes(value);
+        jwt.SaveToken = true;
+        jwt.TokenValidationParameters = new TokenValidationParameters()
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            RequireExpirationTime = true,
+            ValidateLifetime = true,
+            ValidAudience = validAudience,
+            ValidIssuer = validIssuer,
+            ClockSkew = TimeSpan.Zero // for  token lifetime less than 5 minutes
+        };
+    }
 });
 var corsOpenPolicy = "OpenCORSPolicy";
 
@@ -46,9 +54,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(
         name: corsOpenPolicy,
-        builder =>
+        corsPolicyBuilder =>
         {
-            builder.WithOrigins("*").AllowAnyHeader().AllowAnyMethod();
+            corsPolicyBuilder.WithOrigins("*").AllowAnyHeader().AllowAnyMethod();
         });
 });
 
