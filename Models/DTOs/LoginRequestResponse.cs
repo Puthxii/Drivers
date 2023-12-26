@@ -2,5 +2,5 @@
 
 public class LoginRequestResponse : AuthResult
 {
-    
+    public string RefreshToken { get; set; }
 }
